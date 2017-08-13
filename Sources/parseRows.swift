@@ -35,7 +35,14 @@ extension PostgresStORM {
 					params[result.fieldName(index: f)!] = result.getFieldString(tupleIndex: x, fieldIndex: f)
 				case "json":
 					let output = result.getFieldString(tupleIndex: x, fieldIndex: f)
+                    // Check output:
+                    if output?.isEmpty == true {
+                        // This wont be a valid json document, and if it is a blank string, we would most likely want to remove it from the dictionary:
+                        params.removeValue(forKey: result.fieldName(index: f)!)
+                        continue
+                    }
 					do {
+                        
                         let decode = try output?.jsonDecode()
                         // Here we are first trying to cast into the traditional json return.  However, when using the json_agg function, it will return an array.  The following considers both cases.
                         params[result.fieldName(index: f)!] = decode as? [String:Any] ?? decode as? [[String:Any]]
@@ -44,6 +51,12 @@ extension PostgresStORM {
 					}
 				case "jsonb":
 					let output = result.getFieldString(tupleIndex: x, fieldIndex: f)
+                    // Check output:
+                    if output?.isEmpty == true {
+                        // This wont be a valid json document, and if it is a blank string, we would most likely want to remove it from the dictionary:
+                        params.removeValue(forKey: result.fieldName(index: f)!)
+                        continue
+                    }
 					do {
                         let decode = try output?.jsonDecode()
                         // Here we are first trying to cast into the traditional json return.  However, when using the jsonb_agg function, it will return an array.  The following considers both cases.

@@ -7,7 +7,7 @@
 //
 
 import StORM
-import PostgreSQL
+import PerfectPostgreSQL
 import PerfectLogger
 
 /// PostgresConnector sets the connection parameters for the PostgreSQL Server access
@@ -63,6 +63,10 @@ open class PostgresStORM: StORM, StORMProtocol {
 		)
 
 		thisConnection.open()
+		if thisConnection.state == .bad {
+			error = .connectionError
+			throw StORMError.error("Connection Error")
+		}
 		thisConnection.statement = statement
 
 		printDebug(statement, params)
@@ -92,6 +96,10 @@ open class PostgresStORM: StORM, StORMProtocol {
 		)
 
 		thisConnection.open()
+		if thisConnection.state == .bad {
+			error = .connectionError
+			throw StORMError.error("Connection Error")
+		}
 		thisConnection.statement = statement
 
 		printDebug(statement, params)

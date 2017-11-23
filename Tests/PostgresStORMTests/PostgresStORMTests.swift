@@ -5,6 +5,62 @@ import StORM
 @testable import PostgresStORM
 
 
+class AuditFields: PostgresStORM {
+    
+    var id : String? = nil
+    var created : String? = nil
+    var createdBy : String? = nil
+    var modified : String? = nil
+    var modifiedBy : String? = nil
+    
+    override init() {
+        super.init()
+        self.didInitializeSuperclass()
+    }
+}
+
+class TestUser: AuditFields {
+    
+    var firstName : String? = nil
+    var lastName : String? = nil
+    var phoneNumber : String? = nil
+    
+    override init() {
+        super.init()
+        self.didInitializeSuperclass()
+    }
+    
+    override open func table() -> String {
+        return "testuser"
+    }
+    
+    override func to(_ this: StORMRow) {
+        
+        // Audit fields:
+        id                = this.data["id"] as? String
+        created     = this.data["created"] as? String
+        createdBy     = this.data["createdBy"] as? String
+        modified     = this.data["modified"] as? String
+        modifiedBy     = this.data["modifiedBy"] as? String
+        
+        firstName        = this.data["firstName"] as? String
+        lastName        = this.data["lastName"] as? String
+        phoneNumber            = this.data["phoneNumber"] as? String
+        
+    }
+    
+    func rows() -> [User] {
+        var rows = [User]()
+        for i in 0..<self.results.rows.count {
+            let row = User()
+            row.to(self.results.rows[i])
+            rows.append(row)
+        }
+        return rows
+    }
+    
+}
+
 class User: PostgresStORM {
 	// NOTE: First param in class should be the ID.
 	var id				: Int = 0

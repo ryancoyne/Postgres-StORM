@@ -216,7 +216,7 @@ open class PostgresStORM: StORM, StORMProtocol {
 		if str.count == 0 {
 			var opt = [String]()
 			var keyName = ""
-			for child in self.allChildren() {
+			for child in self.allChildren(includingNilValues: true) {
 				var verbage = ""
 				if !child.key.hasPrefix("internal_") && !child.key.hasPrefix("_") {
 					verbage = "\(child.key.lowercased()) "
@@ -260,5 +260,3 @@ open class PostgresStORM: StORM, StORMProtocol {
 	}
 
 }
-
-

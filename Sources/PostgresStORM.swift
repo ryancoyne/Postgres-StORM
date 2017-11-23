@@ -213,16 +213,13 @@ open class PostgresStORM: StORM, StORMProtocol {
 	open func setup(_ str: String = "") throws {
 		LogFile.info("Running setup: \(table())", logFile: "./StORMlog.txt")
 		var createStatement = str
-		if str.characters.count == 0 {
+		if str.count == 0 {
 			var opt = [String]()
 			var keyName = ""
-			for child in Mirror(reflecting: self).children {
-				guard let key = child.label else {
-					continue
-				}
+			for child in self.allChildren() {
 				var verbage = ""
-				if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
-					verbage = "\(key.lowercased()) "
+				if !child.key.hasPrefix("internal_") && !child.key.hasPrefix("_") {
+					verbage = "\(child.key.lowercased()) "
 					if child.value is Int && opt.count == 0 {
 						verbage += "serial"
 					} else if child.value is Int {
@@ -243,7 +240,7 @@ open class PostgresStORM: StORM, StORMProtocol {
 					}
 					if opt.count == 0 {
 						verbage += " NOT NULL"
-						keyName = key
+						keyName = child.key
 					}
 					opt.append(verbage)
 				}

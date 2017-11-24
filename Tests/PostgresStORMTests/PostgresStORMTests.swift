@@ -18,6 +18,47 @@ class AuditFields: PostgresStORM {
     }
 }
 
+class TestUser2: AuditFields {
+    var firstName : String? = nil
+    var lastName : String? = nil
+    var phoneNumber : String? = nil
+    var id : Int? = nil
+    
+    override open func table() -> String {
+        return "testuser2"
+    }
+    
+    override open func primaryKeyLabel() -> String? {
+        return "id"
+    }
+    
+    override func to(_ this: StORMRow) {
+        
+        // Audit fields:
+        id                = this.data["id"] as? Int
+        created     = this.data["created"] as? String
+        createdBy     = this.data["createdBy"] as? String
+        modified     = this.data["modified"] as? String
+        modifiedBy     = this.data["modifiedBy"] as? String
+        
+        firstName        = this.data["firstName"] as? String
+        lastName        = this.data["lastName"] as? String
+        phoneNumber            = this.data["phoneNumber"] as? String
+        
+    }
+    
+    func rows() -> [User] {
+        var rows = [User]()
+        for i in 0..<self.results.rows.count {
+            let row = User()
+            row.to(self.results.rows[i])
+            rows.append(row)
+        }
+        return rows
+    }
+    
+}
+
 class TestUser: AuditFields {
     
     // The id still needs to be first if the primaryKeyLabel for StORM is not set to anything.
@@ -99,26 +140,93 @@ class PostgresStORMTests: XCTestCase {
 
 	override func setUp() {
 		super.setUp()
-		#if os(Linux)
-
-			PostgresConnector.host		= ProcessInfo.processInfo.environment["HOST"]!
-			PostgresConnector.username	= ProcessInfo.processInfo.environment["USER"]!
-			PostgresConnector.password	= ProcessInfo.processInfo.environment["PASS"]!
-			PostgresConnector.database	= ProcessInfo.processInfo.environment["DB"]!
-			PostgresConnector.port		= Int(ProcessInfo.processInfo.environment["PORT"]!)!
-
-		#else
-			PostgresConnector.host		= "localhost"
-			PostgresConnector.username	= "perfect"
-			PostgresConnector.password	= "perfect"
-			PostgresConnector.database	= "perfect_testing"
-			PostgresConnector.port		= 5432
-		#endif
-		let obj = User()
-		try? obj.setup()
-		StORMdebug = true
+//        #if os(Linux)
+//
+//            PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
+//            PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
+//            PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
+//            PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
+//            PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
+//
+//        #else
+//            PostgresConnector.host        = "localhost"
+//            PostgresConnector.username    = "perfect"
+//            PostgresConnector.password    = "perfect"
+//            PostgresConnector.database    = "perfect_testing"
+//            PostgresConnector.port        = 5432
+//        #endif
+//        let obj = User()
+//        try? obj.setup()
+//        StORMdebug = true
+//
+        #if os(Linux)
+            
+            PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
+            PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
+            PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
+            PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
+            PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
+            
+        #else
+            PostgresConnector.host        = "localhost"
+            PostgresConnector.username    = "testuser"
+            PostgresConnector.password    = "ccx"
+            PostgresConnector.database    = "testdb"
+            PostgresConnector.port        = 5432
+        #endif
+        
+//        let user = TestUser()
+//        try? user.setup()
+        
+        let user2 = TestUser2()
+        try? user2.setup(autoIncrementPK: true)
+        
+        StORMdebug = true
+        
 	}
+    
+    // New test cases:
+    func testNewModelStructure() {
+        
+        let user = TestUser2()
+        
+        user.firstName = "Test"
+        user.lastName = "Test"
+        user.phoneNumber = "15555555555"
+        
+        do {
+            
+            try user.save { id in user.id = id as? Int }
+            
+        } catch {
+            XCTFail(String(describing: error))
+        }
+        XCTAssert(user.id != nil, "Object not saved (new)")
+        
+    }
+    
+    func testCreateAndSave() {
+        
+        let user = TestUser()
 
+        user.id = UUID().uuidString
+        user.firstName = "Test"
+        user.lastName = "Test"
+        user.phoneNumber = "15555555555"
+        
+        do {
+            try user.create()
+            
+            user.firstName = "Test 2"
+            
+            try user.save()
+            
+        } catch {
+            XCTFail(String(describing: error))
+        }
+        XCTAssert(user.id != nil, "Object not saved (new)")
+    }
+    
 	/* =============================================================================================
 	Save - New
 	============================================================================================= */
@@ -136,29 +244,6 @@ class PostgresStORMTests: XCTestCase {
 		XCTAssert(obj.id > 0, "Object not saved (new)")
 	}
     
-    func testSetUp() {
-        
-        #if os(Linux)
-            
-            PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
-            PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
-            PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
-            PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
-            PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
-            
-        #else
-            PostgresConnector.host        = "localhost"
-            PostgresConnector.username    = "testuser"
-            PostgresConnector.password    = "ccx"
-            PostgresConnector.database    = "testdb"
-            PostgresConnector.port        = 5432
-        #endif
-        
-        let user = TestUser()
-        try? user.setup()
-        StORMdebug = true
-    }
-
 	/* =============================================================================================
 	Save - Update
 	============================================================================================= */
@@ -509,7 +594,7 @@ class PostgresStORMTests: XCTestCase {
 			("testFindAll", testFindAll),
 			("testArray", testArray),
             ("testJsonAggregation", testJsonAggregation),
-            ("setUp2", testSetUp)
+            ("testNewModelStructure", testNewModelStructure)
 		]
 	}
 

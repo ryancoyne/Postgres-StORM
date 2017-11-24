@@ -210,7 +210,7 @@ open class PostgresStORM: StORM, StORMProtocol {
 	/// Table Creation
 	/// Requires the connection to be configured, as well as a valid "table" property to have been set in the class
 
-	open func setup(_ str: String = "") throws {
+    open func setup(_ str: String = "", autoIncrementPK : Bool = false) throws {
 		LogFile.info("Running setup: \(table())", logFile: "./StORMlog.txt")
 		var createStatement = str
 		if str.count == 0 {
@@ -223,37 +223,61 @@ open class PostgresStORM: StORM, StORMProtocol {
                 }
 				if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
 					verbage = "\(key.lowercased()) "
-					if child.value is Int && opt.count == 0 {
-						verbage += "serial"
-					} else if child.value is Int {
-						verbage += "int8"
-					} else if child.value is Bool {
-						verbage += "bool"
-					} else if child.value is [String:Any] {
-						verbage += "jsonb"
-					// Adding support for arrays
-					} else if child.value is [String] || child.value is [Int] || child.value is [Any] {
-						verbage += "text" // they are stored as comma delimited arrays
-					} else if child.value is Double {
-						verbage += "float8"
-					} else if child.value is UInt || child.value is UInt8 || child.value is UInt16 || child.value is UInt32 || child.value is UInt64 {
-						verbage += "bytea"
-					} else {
-						verbage += "text"
-					}
-                    if opt.count == 0 {
+                    switch type(of: child.value) {
+                    case is Int?.Type, is Int.Type:
+                        if autoIncrementPK && opt.count == 0 {
+                            verbage += "integer NOT NULL DEFAULT nextval('\(table())_id_seq'::regclass)"
+                            // Lets go and create the sequence:
+                            var addsequence = "CREATE SEQUENCE public.\(table())_id_seq "
+                            addsequence.append("INCREMENT 1 ")
+                            addsequence.append("START 1 ")
+                            addsequence.append("MINVALUE 1 ")
+                            addsequence.append("MAXVALUE 9223372036854775807 ")
+                            addsequence.append("CACHE 1;")
+                            
+                            do {
+                                try sql(addsequence, params: [])
+                            } catch {
+                                LogFile.error("Error msg: \(error)", logFile: "./StORMlog.txt")
+                                throw StORMError.error("\(error)")
+                            }
+                            
+                        } else if opt.count == 0 {
+                            verbage += "serial NOT NULL"
+                        } else {
+                            verbage += "int8"
+                        }
+                    case is Bool.Type, is Bool?.Type:
+                        verbage += "bool"
+                    case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
+                        verbage += "text"
+                    case is [String:Any].Type, is [String:Any]?.Type:
+                        verbage += "jsonb"
+                    case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
+                        verbage += "bytea"
+                    case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
+                        verbage += "float8"
+                    default:
+                        verbage += "text"
+                    }
+                    if opt.count == 0 && !autoIncrementPK {
                         verbage += " NOT NULL"
                         keyName = key
                     }
-					opt.append(verbage)
-				}
-			}
-			let keyComponent = ", CONSTRAINT \(table())_key PRIMARY KEY (\(keyName)) NOT DEFERRABLE INITIALLY IMMEDIATE"
-
-			createStatement = "CREATE TABLE IF NOT EXISTS \(table()) (\(opt.joined(separator: ", "))\(keyComponent));"
-			if StORMdebug { LogFile.info("createStatement: \(createStatement)", logFile: "./StORMlog.txt") }
-
-		}
+                }
+                opt.append(verbage)
+            }
+            
+            var keyComponent = ""
+            if !autoIncrementPK  {
+                keyComponent =  ", CONSTRAINT \(table())_key PRIMARY KEY (\(keyName)) NOT DEFERRABLE INITIALLY IMMEDIATE"
+            }
+            
+            createStatement = "CREATE TABLE IF NOT EXISTS \(table()) (\(opt.joined(separator: ", "))\(keyComponent));"
+            if StORMdebug { LogFile.info("createStatement: \(createStatement)", logFile: "./StORMlog.txt") }
+            
+        }
+        
 		do {
 			try sql(createStatement, params: [])
 		} catch {

@@ -7,7 +7,6 @@ import StORM
 
 class AuditFields: PostgresStORM {
     
-    var id : String? = nil
     var created : String? = nil
     var createdBy : String? = nil
     var modified : String? = nil
@@ -21,17 +20,19 @@ class AuditFields: PostgresStORM {
 
 class TestUser: AuditFields {
     
+    // The id still needs to be first if the primaryKeyLabel for StORM is not set to anything.
+    // If the id needs to be in another superclass, set the primaryKeyLabel for StORM.
     var firstName : String? = nil
     var lastName : String? = nil
     var phoneNumber : String? = nil
-    
-    override init() {
-        super.init()
-        self.didInitializeSuperclass()
-    }
+    var id : String? = nil
     
     override open func table() -> String {
         return "testuser"
+    }
+    
+    override open func primaryKeyLabel() -> String? {
+        return "id"
     }
     
     override func to(_ this: StORMRow) {
@@ -134,6 +135,29 @@ class PostgresStORMTests: XCTestCase {
 		}
 		XCTAssert(obj.id > 0, "Object not saved (new)")
 	}
+    
+    func testSetUp() {
+        
+        #if os(Linux)
+            
+            PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
+            PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
+            PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
+            PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
+            PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
+            
+        #else
+            PostgresConnector.host        = "localhost"
+            PostgresConnector.username    = "testuser"
+            PostgresConnector.password    = "ccx"
+            PostgresConnector.database    = "testdb"
+            PostgresConnector.port        = 5432
+        #endif
+        
+        let user = TestUser()
+        try? user.setup()
+        StORMdebug = true
+    }
 
 	/* =============================================================================================
 	Save - Update
@@ -484,7 +508,8 @@ class PostgresStORMTests: XCTestCase {
 			("testFind", testFind),
 			("testFindAll", testFindAll),
 			("testArray", testArray),
-            ("testJsonAggregation", testJsonAggregation)
+            ("testJsonAggregation", testJsonAggregation),
+            ("setUp2", testSetUp)
 		]
 	}
 

@@ -216,10 +216,13 @@ open class PostgresStORM: StORM, StORMProtocol {
 		if str.count == 0 {
 			var opt = [String]()
 			var keyName = ""
-			for child in self.allChildren(includingNilValues: true) {
+			for child in self.allChildren(includingNilValues: true, primaryKey: self.primaryKeyLabel()) {
 				var verbage = ""
-				if !child.key.hasPrefix("internal_") && !child.key.hasPrefix("_") {
-					verbage = "\(child.key.lowercased()) "
+                guard let key = child.label else {
+                    continue
+                }
+				if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
+					verbage = "\(key.lowercased()) "
 					if child.value is Int && opt.count == 0 {
 						verbage += "serial"
 					} else if child.value is Int {
@@ -238,10 +241,10 @@ open class PostgresStORM: StORM, StORMProtocol {
 					} else {
 						verbage += "text"
 					}
-					if opt.count == 0 {
-						verbage += " NOT NULL"
-						keyName = child.key
-					}
+                    if opt.count == 0 {
+                        verbage += " NOT NULL"
+                        keyName = key
+                    }
 					opt.append(verbage)
 				}
 			}

@@ -21,10 +21,14 @@ extension PostgresStORM {
 		var vals = [String]()
 		for i in data {
             // Automatic created setting:
-            keys.append(i.0)
+            
             if i.0 == "created" {
-                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+                keys.append(i.0)
+                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
+            } else if i.0 == "modified" {
+                // DO NOTHING - NO AUTOMATIC UPDATE FOR INSERT FOR MODIFIED:
             } else {
+                keys.append(i.0)
                 vals.append(String(describing: i.1))
             }
 		}
@@ -42,10 +46,14 @@ extension PostgresStORM {
 		var keys = [String]()
 		var vals = [String]()
         for i in data.keys {
-            keys.append(i.lowercased())
+            
             if i == "created" {
-                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+                keys.append(i.lowercased())
+                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
+            } else if i == "modified" {
+                // DO NOTHING ON INSERT FOR MODIFIED:
             } else {
+                keys.append(i.lowercased())
                 vals.append(data[i] as! String)
             }
 		}

@@ -23,10 +23,14 @@ extension PostgresStORM {
 		var set = [String]()
 		for i in 0..<params.count {
             let param = String(describing: params[i])
-            paramsString.append(param)
+            
             if param == "modified" {
-                set.append("\"\(String(describing: Int(Date().timeIntervalSinceNow)))\" = $\(i+1)")
+                paramsString.append(param)
+                set.append("\"\(String(describing: Int(Date().timeIntervalSince1970)))\" = $\(i+1)")
+            } else if param == "created" {
+                // DO NOTHING:
             } else {
+                paramsString.append(param)
                 set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
             }
 		}
@@ -55,11 +59,15 @@ extension PostgresStORM {
 		var keys = [String]()
 		var vals = [String]()
 		for i in 0..<data.count {
-            keys.append(data[i].0.lowercased())
+            
             // Automatic modified date:
             if data[i].0.lowercased() == "modified" {
-                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+                keys.append(data[i].0.lowercased())
+                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
+            } else if data[i].0.lowercased() == "created" {
+                // DO NOTHING ON UPDATE FOR automatic created date field:
             } else {
+                keys.append(data[i].0.lowercased())
                 vals.append(String(describing: data[i].1))
             }
         

@@ -175,11 +175,11 @@ class PostgresStORMTests: XCTestCase {
             PostgresConnector.port        = 5432
         #endif
         
-        let user = TestUser()
-        try? user.setup()
+//        let user = TestUser()
+//        try? user.setup()
         
-//        let user2 = TestUser2()
-//        try? user2.setup(autoIncrementPK: true)
+        let user2 = TestUser2()
+        try? user2.setup(autoIncrementPK: true)
         
         StORMdebug = true
         

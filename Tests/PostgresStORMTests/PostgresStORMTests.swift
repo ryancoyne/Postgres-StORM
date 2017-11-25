@@ -205,6 +205,17 @@ class PostgresStORMTests: XCTestCase {
         
     }
     
+    func testModified() {
+        
+        let user = TestUser2()
+        
+        user.id = 3
+        user.firstName = "Ryan3"
+        
+        try? user.save()
+        
+    }
+    
     func testCreateAndSave() {
         
         let user = TestUser()

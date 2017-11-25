@@ -247,7 +247,7 @@ open class PostgresStORM: StORM, StORMProtocol {
                             }
                             
                         } else if opt.count == 0 {
-                            verbage += "serial NOT NULL"
+                            verbage += "serial"
                         } else {
                             verbage += "int8"
                         }

@@ -206,10 +206,14 @@ open class PostgresStORM: StORM, StORMProtocol {
 	open func setupTable(_ str: String = "") throws {
 		try setup(str)
 	}
-
-	/// Table Creation
-	/// Requires the connection to be configured, as well as a valid "table" property to have been set in the class
-
+    
+    /// Table creation
+    /// Requires the connection to be configured, as well as a valid "table" property to have been set in the class
+    ///
+    /// - Parameters:
+    ///   - str: This makes it so you can run your own SQL string to setup your table.
+    ///   - autoIncrementPK: This makes it so if your primary key is an integer, it sets up a sequence for automatically setting your id on save().
+    /// - Throws: Throws a StORM error with the description of the error.
     open func setup(_ str: String = "", autoIncrementPK : Bool = false) throws {
 		LogFile.info("Running setup: \(table())", logFile: "./StORMlog.txt")
 		var createStatement = str

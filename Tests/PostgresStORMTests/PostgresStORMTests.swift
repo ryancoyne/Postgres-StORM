@@ -7,9 +7,9 @@ import StORM
 
 class AuditFields: PostgresStORM {
     
-    var created : String? = nil
+    var created : Int? = nil
     var createdBy : String? = nil
-    var modified : String? = nil
+    var modified : Int? = nil
     var modifiedBy : String? = nil
     
     override init() {
@@ -36,9 +36,9 @@ class TestUser2: AuditFields {
         
         // Audit fields:
         id                = this.data["id"] as? Int
-        created     = this.data["created"] as? String
+        created     = this.data["created"] as? Int
         createdBy     = this.data["createdBy"] as? String
-        modified     = this.data["modified"] as? String
+        modified     = this.data["modified"] as? Int
         modifiedBy     = this.data["modifiedBy"] as? String
         
         firstName        = this.data["firstName"] as? String
@@ -80,9 +80,9 @@ class TestUser: AuditFields {
         
         // Audit fields:
         id                = this.data["id"] as? String
-        created     = this.data["created"] as? String
+        created     = this.data["created"] as? Int
         createdBy     = this.data["createdBy"] as? String
-        modified     = this.data["modified"] as? String
+        modified     = this.data["modified"] as? Int
         modifiedBy     = this.data["modifiedBy"] as? String
         
         firstName        = this.data["firstName"] as? String
@@ -175,11 +175,11 @@ class PostgresStORMTests: XCTestCase {
             PostgresConnector.port        = 5432
         #endif
         
-//        let user = TestUser()
-//        try? user.setup()
+        let user = TestUser()
+        try? user.setup()
         
-        let user2 = TestUser2()
-        try? user2.setup(autoIncrementPK: true)
+//        let user2 = TestUser2()
+//        try? user2.setup(autoIncrementPK: true)
         
         StORMdebug = true
         

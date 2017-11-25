@@ -8,6 +8,7 @@
 
 import StORM
 import PerfectLogger
+import Foundation
 
 /// Extends the main class with update functions.
 extension PostgresStORM {
@@ -21,9 +22,15 @@ extension PostgresStORM {
 		var paramsString = [String]()
 		var set = [String]()
 		for i in 0..<params.count {
-			paramsString.append(String(describing: params[i]))
-			set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
+            let param = String(describing: params[i])
+            paramsString.append(param)
+            if param == "modified" {
+                set.append("\"\(String(describing: Int(Date().timeIntervalSinceNow)))\" = $\(i+1)")
+            } else {
+                set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
+            }
 		}
+        
 		paramsString.append(String(describing: idValue))
 
 		let str = "UPDATE \(self.table()) SET \(set.joined(separator: ", ")) WHERE \"\(idName.lowercased())\" = $\(params.count+1)"
@@ -48,8 +55,14 @@ extension PostgresStORM {
 		var keys = [String]()
 		var vals = [String]()
 		for i in 0..<data.count {
-			keys.append(data[i].0.lowercased())
-			vals.append(String(describing: data[i].1))
+            keys.append(data[i].0.lowercased())
+            // Automatic modified date:
+            if data[i].0.lowercased() == "modified" {
+                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+            } else {
+                vals.append(String(describing: data[i].1))
+            }
+        
 		}
 		do {
 			return try update(cols: keys, params: vals, idName: idName, idValue: idValue)

@@ -8,6 +8,7 @@
 
 import StORM
 import PerfectLogger
+import Foundation
 
 /// Performs insert functions as an extension to the main class.
 extension PostgresStORM {
@@ -19,8 +20,13 @@ extension PostgresStORM {
 		var keys = [String]()
 		var vals = [String]()
 		for i in data {
-			keys.append(i.0)
-			vals.append(String(describing: i.1))
+            // Automatic created setting:
+            keys.append(i.0)
+            if i.0 == "created" {
+                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+            } else {
+                vals.append(String(describing: i.1))
+            }
 		}
 		do {
 			return try insert(cols: keys, params: vals)
@@ -35,9 +41,13 @@ extension PostgresStORM {
 
 		var keys = [String]()
 		var vals = [String]()
-		for i in data.keys {
-			keys.append(i.lowercased())
-			vals.append(data[i] as! String)
+        for i in data.keys {
+            keys.append(i.lowercased())
+            if i == "created" {
+                vals.append(String(describing: Int(Date().timeIntervalSinceNow)))
+            } else {
+                vals.append(data[i] as! String)
+            }
 		}
 
 		do {

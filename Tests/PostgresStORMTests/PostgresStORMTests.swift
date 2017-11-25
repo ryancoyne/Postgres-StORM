@@ -7,27 +7,31 @@ import StORM
 
 class AuditFields: PostgresStORM {
     
-    var created : Int? = nil
-    var createdBy : String? = nil
-    var modified : Int? = nil
-    var modifiedBy : String? = nil
+    var created : Int?           = nil
+    var createdby : String?  = nil
+    var modified : Int?          = nil
+    var modifiedby : String? = nil
     
+    // This is needed when created a subclass containing other fields to re-use for other models.
     override init() {
         super.init()
         self.didInitializeSuperclass()
     }
 }
 
+// The outer most class does not need to override init & call didInitializeSuperclass.  This helps with identifying the id in the model.
 class TestUser2: AuditFields {
-    var firstName : String? = nil
-    var lastName : String? = nil
-    var phoneNumber : String? = nil
-    var id : Int? = nil
+    // Notice we now do not need to put id at the top.  However, this is backwards compatable, meaning if you do not want to subclass, or if someone updates & has the same models, they do not need to add any extra code.
+    var firstname : String?          = nil
+    var lastname : String?          = nil
+    var phonenumber : String? = nil
+    var id : Int?                             = nil
     
     override open func table() -> String {
         return "testuser2"
     }
     
+    // This is only needed if the id for the table is outside the scope of this class.  This also gives us the flexibilty of having the primary key placed anwhere in the model.
     override open func primaryKeyLabel() -> String? {
         return "id"
     }
@@ -37,13 +41,13 @@ class TestUser2: AuditFields {
         // Audit fields:
         id                = this.data["id"] as? Int
         created     = this.data["created"] as? Int
-        createdBy     = this.data["createdBy"] as? String
+        createdby     = this.data["createdby"] as? String
         modified     = this.data["modified"] as? Int
-        modifiedBy     = this.data["modifiedBy"] as? String
+        modifiedby     = this.data["modifiedby"] as? String
         
-        firstName        = this.data["firstName"] as? String
-        lastName        = this.data["lastName"] as? String
-        phoneNumber            = this.data["phoneNumber"] as? String
+        firstname        = this.data["firstname"] as? String
+        lastname        = this.data["lastname"] as? String
+        phonenumber            = this.data["phonenumber"] as? String
         
     }
     
@@ -63,31 +67,27 @@ class TestUser: AuditFields {
     
     // The id still needs to be first if the primaryKeyLabel for StORM is not set to anything.
     // If the id needs to be in another superclass, set the primaryKeyLabel for StORM.
+    var id : String? = nil
     var firstName : String? = nil
     var lastName : String? = nil
     var phoneNumber : String? = nil
-    var id : String? = nil
     
     override open func table() -> String {
         return "testuser"
     }
-    
-    override open func primaryKeyLabel() -> String? {
-        return "id"
-    }
-    
+
     override func to(_ this: StORMRow) {
         
         // Audit fields:
         id                = this.data["id"] as? String
         created     = this.data["created"] as? Int
-        createdBy     = this.data["createdBy"] as? String
+        createdby     = this.data["createdby"] as? String
         modified     = this.data["modified"] as? Int
-        modifiedBy     = this.data["modifiedBy"] as? String
+        modifiedby     = this.data["modifiedby"] as? String
         
-        firstName        = this.data["firstName"] as? String
-        lastName        = this.data["lastName"] as? String
-        phoneNumber            = this.data["phoneNumber"] as? String
+        firstName        = this.data["firstname"] as? String
+        lastName        = this.data["lastname"] as? String
+        phoneNumber            = this.data["phonenumber"] as? String
         
     }
     
@@ -190,9 +190,9 @@ class PostgresStORMTests: XCTestCase {
         
         let user = TestUser2()
         
-        user.firstName = "Test"
-        user.lastName = "Test"
-        user.phoneNumber = "15555555555"
+        user.firstname = "Test"
+        user.lastname = "Test"
+        user.phonenumber = "15555555555"
         
         do {
             
@@ -210,7 +210,7 @@ class PostgresStORMTests: XCTestCase {
         let user = TestUser2()
         
         user.id = 3
-        user.firstName = "Ryan3"
+        user.firstname = "Ryan3"
         
         try? user.save()
         

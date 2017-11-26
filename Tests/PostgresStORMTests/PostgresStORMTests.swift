@@ -21,7 +21,7 @@ class AuditFields: PostgresStORM {
 
 // The outer most class does not need to override init & call didInitializeSuperclass.  This helps with identifying the id in the model.
 class TestUser2: AuditFields {
-    // Notice we now do not need to put id at the top.  However, this is backwards compatable, meaning if you do not want to subclass, or if someone updates & has the same models, they do not need to add any extra code.
+    // Notice we now do not need to put id at the top.  However, this is backwards compatable, meaning if you do not want to subclass, or if someone updates & has the same models as configured before, they do not need to add any extra code to set the primaryKeyLabel.
     var firstname : String?          = nil
     var lastname : String?          = nil
     var phonenumber : String? = nil
@@ -205,7 +205,7 @@ class PostgresStORMTests: XCTestCase {
         
     }
     
-    func testModified() {
+    func testAutomaticModified() {
         
         let user = TestUser2()
         

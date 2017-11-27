@@ -33,7 +33,7 @@ extension PostgresStORM {
         
         // Lets deal with updating values back to null - we wont lowercase the null column name since they are adding it in the array if it gets set to nil in the model:
         for nullColumnName in nullColumns {
-            set.append("\"\(nullColumnName)\" = NULL")
+            set.append("\"\(nullColumnName)\" = DEFAULT")
         }
         
 		paramsString.append(String(describing: idValue))

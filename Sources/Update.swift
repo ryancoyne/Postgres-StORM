@@ -21,14 +21,10 @@ extension PostgresStORM {
 		var paramsString = [String]()
 		var set = [String]()
 		for i in 0..<params.count {
-            let param = String(describing: params[i])
             
-            if param == "created" {
-            } else {
-                paramsString.append(param)
-                set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
-            }
-    
+            paramsString.append(String(describing: params[i]))
+            set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
+            
 		}
         
         // Lets deal with updating values back to null - we wont lowercase the null column name since they are adding it in the array if it gets set to nil in the model:
@@ -61,7 +57,7 @@ extension PostgresStORM {
 		var vals = [String]()
 		for i in 0..<data.count {
             
-            // Automatic modified date:
+            // Automatic modified date -- Ignoring the created field here:
             if data[i].0.lowercased() == "created" {
             } else {
                 keys.append(data[i].0.lowercased())

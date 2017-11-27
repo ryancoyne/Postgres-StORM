@@ -42,6 +42,7 @@ extension PostgresStORM {
 		var vals = [String]()
         for i in data.keys {
             
+            // Automatic modified date -- Ignoring the modified field here
             if i == "modified" {
             } else {
                 keys.append(i.lowercased())

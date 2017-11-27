@@ -12,7 +12,6 @@ import Foundation
 
 /// Extends the main class with update functions.
 extension PostgresStORM {
-
 	/// Updates the row with the specified data.
 	/// This is an alternative to the save() function.
 	/// Specify matching arrays of columns and parameters, as well as the id name and value.
@@ -25,13 +24,17 @@ extension PostgresStORM {
             let param = String(describing: params[i])
             
             if param == "created" {
-//                paramsString.append(param)
-//                set.append("\"\(String(describing: Int(Date().timeIntervalSince1970)))\" = $\(i+1)")
             } else {
                 paramsString.append(param)
                 set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
             }
+    
 		}
+        
+        // Lets deal with updating values back to null - we wont lowercase the null column name since they are adding it in the array if it gets set to nil in the model:
+        for nullColumnName in nullColumns {
+            set.append("\"\(nullColumnName)\" = NULL")
+        }
         
 		paramsString.append(String(describing: idValue))
 
@@ -60,8 +63,6 @@ extension PostgresStORM {
             
             // Automatic modified date:
             if data[i].0.lowercased() == "created" {
-//                keys.append(data[i].0.lowercased())
-//                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
             } else {
                 keys.append(data[i].0.lowercased())
                 vals.append(String(describing: data[i].1))

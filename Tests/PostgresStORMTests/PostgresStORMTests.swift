@@ -22,9 +22,33 @@ class AuditFields: PostgresStORM {
 // The outer most class does not need to override init & call didInitializeSuperclass.  This helps with identifying the id in the model.
 class TestUser2: AuditFields {
     // Notice we now do not need to put id at the top.  However, this is backwards compatable, meaning if you do not want to subclass, or if someone updates & has the same models as configured before, they do not need to add any extra code to set the primaryKeyLabel.
-    var firstname : String?          = nil
-    var lastname : String?          = nil
-    var phonenumber : String? = nil
+    var firstname : String?          = nil {
+        didSet {
+            if oldValue != nil && firstname == nil {
+                self.nullColumns.insert("firstname")
+            } else if firstname != nil {
+                self.nullColumns.remove("firstname")
+            }
+        }
+    }
+    var lastname : String?          = nil {
+        didSet {
+            if oldValue != nil && firstname == nil {
+                self.nullColumns.insert("lastname")
+            } else if firstname != nil {
+                self.nullColumns.remove("lastname")
+            }
+        }
+    }
+    var phonenumber : String? = nil {
+        didSet {
+            if oldValue != nil && firstname == nil {
+                self.nullColumns.insert("phonenumber")
+            } else if firstname != nil {
+                self.nullColumns.remove("phonenumber")
+            }
+        }
+    }
     var id : Int?                             = nil
     
     override open func table() -> String {
@@ -51,10 +75,10 @@ class TestUser2: AuditFields {
         
     }
     
-    func rows() -> [User] {
-        var rows = [User]()
+    func rows() -> [TestUser2] {
+        var rows = [TestUser2]()
         for i in 0..<self.results.rows.count {
-            let row = User()
+            let row = TestUser2()
             row.to(self.results.rows[i])
             rows.append(row)
         }
@@ -91,10 +115,10 @@ class TestUser: AuditFields {
         
     }
     
-    func rows() -> [User] {
-        var rows = [User]()
+    func rows() -> [TestUser] {
+        var rows = [TestUser]()
         for i in 0..<self.results.rows.count {
-            let row = User()
+            let row = TestUser()
             row.to(self.results.rows[i])
             rows.append(row)
         }
@@ -186,7 +210,7 @@ class PostgresStORMTests: XCTestCase {
 	}
     
     // New test cases:
-    func testNewModelStructure() {
+    func testNewModelStructureWithAuditUserId() {
         
         let user = TestUser2()
         
@@ -196,7 +220,9 @@ class PostgresStORMTests: XCTestCase {
         
         do {
             
-            try user.save { id in user.id = id as? Int }
+            try user.save(auditUserId: "MyUserIdTest", didSet: { id in let id = id as? Int
+                user.id = id
+            })
             
         } catch {
             XCTFail(String(describing: error))
@@ -213,6 +239,22 @@ class PostgresStORMTests: XCTestCase {
         user.firstname = "Ryan3"
         
         try? user.save()
+        
+    }
+    
+    func testGetAndSetNull() {
+        
+        let user = TestUser2()
+        try? user.get(10)
+        
+        if user.id != nil {
+            
+            user.lastname = nil
+            try? user.save(auditUserId: "TestUserBit")
+            
+        } else {
+            
+        }
         
     }
     
@@ -605,7 +647,7 @@ class PostgresStORMTests: XCTestCase {
 			("testFindAll", testFindAll),
 			("testArray", testArray),
             ("testJsonAggregation", testJsonAggregation),
-            ("testNewModelStructure", testNewModelStructure)
+            ("testNewModelStructure", testNewModelStructureWithAuditUserId)
 		]
 	}
 

@@ -34,6 +34,13 @@ public struct PostgresConnector {
 /// Provides PosgreSQL-specific ORM functionality to child classes
 open class PostgresStORM: StORM, StORMProtocol {
 
+    /// Optional Support - Set value to nil, add it to null update, otherwise it will not save correctly.
+    private var _columnsThatNeedNullOnSave : Set<String> = []
+    var nullColumns : Set<String> {
+        get { return self._columnsThatNeedNullOnSave }
+        set { self._columnsThatNeedNullOnSave = newValue }
+    }
+    
 	/// Table that the child object relates to in the database.
 	/// Defined as "open" as it is meant to be overridden by the child class.
 	open func table() -> String {
@@ -149,24 +156,70 @@ open class PostgresStORM: StORM, StORMProtocol {
 		self.to(self.results.rows[0])
 	}
 
-	/// Standard "Save" function.
-	/// Designed as "open" so it can be overriden and customized.
-	/// If an ID has been defined, save() will perform an updae, otherwise a new document is created.
-	/// On error can throw a StORMError error.
-
-	open func save() throws {
-		do {
-			if keyIsEmpty() {
-				try insert(asData(1))
-			} else {
-				let (idname, idval) = firstAsKey()
-				try update(data: asData(1), idName: idname, idValue: idval)
-			}
-		} catch {
-			LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
-			throw StORMError.error("\(error)")
-		}
-	}
+	
+    /// This function saves, either inserting or updating depending on the key.  This also automatically inserts the createdby or modifiedby column user id.
+    ///
+    /// - Parameter auditUserId: This is the id of the user, typically a string if using PerfectAuthentication
+    /// - Throws: gives a StORMError error.
+    func save(auditUserId: Any, didSet: ((_ id: Any)->Void)?=nil) throws {
+        do {
+            var data = asData(1)
+            if keyIsEmpty() {
+                
+                if let index = data.index(where: { (dic) -> Bool in
+                    return dic.0 == "createdby"
+                }) {
+                    data[index].1 = String(describing: auditUserId)
+                } else {
+                    data.append(("createdby", String(describing: auditUserId)))
+                }
+                
+                let id = try insert(data)
+                didSet?(id)
+            } else {
+                let (idname, idval) = firstAsKey()
+                
+                if let index = data.index(where: { (dic) -> Bool in
+                    return dic.0 == "modifiedby"
+                }) {
+                    data[index].1 = String(describing: auditUserId)
+                } else {
+                    data.append(("modifiedby", String(describing: auditUserId)))
+                }
+                try update(data: data, idName: idname, idValue: idval)
+            }
+        } catch {
+            LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
+            throw StORMError.error("\(error)")
+        }
+    }
+    
+    /// Standard "Save" function.
+    /// Designed as "open" so it can be overriden and customized.
+    /// If an ID has been defined, save() will perform an updae, otherwise a new document is created.
+    /// On error can throw a StORMError error.
+    
+    open func save() throws {
+        do {
+            var data = asData(1)
+            if keyIsEmpty() {
+                try insert(data)
+            } else {
+                let (idname, idval) = firstAsKey()
+                // If the values were back to nil they wont show in the asData function. Here we need to add the column/null value:
+                if !self.nullColumns.isEmpty {
+                    for column in self.nullColumns {
+                        data.append((column, "null"))
+                    }
+                }
+                try update(data: data, idName: idname, idValue: idval)
+                self._columnsThatNeedNullOnSave.removeAll()
+            }
+        } catch {
+            LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
+            throw StORMError.error("\(error)")
+        }
+    }
 
 	/// Alternate "Save" function.
 	/// This save method will use the supplied "set" to assign or otherwise process the returned id.
@@ -174,24 +227,31 @@ open class PostgresStORM: StORM, StORMProtocol {
 	/// If an ID has been defined, save() will perform an updae, otherwise a new document is created.
 	/// On error can throw a StORMError error.
 
-	open func save(set: (_ id: Any)->Void) throws {
-		do {
-			if keyIsEmpty() {
-				let setId = try insert(asData(1))
-				set(setId)
-			} else {
-				let (idname, idval) = firstAsKey()
-				try update(data: asData(1), idName: idname, idValue: idval)
-			}
-		} catch {
-			LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
-			throw StORMError.error("\(error)")
-		}
-	}
+    open func save(set: (_ id: Any)->Void) throws {
+        do {
+            var data = asData(1)
+            if keyIsEmpty() {
+                let setId = try insert(data)
+                set(setId)
+            } else {
+                let (idname, idval) = firstAsKey()
+                if !self.nullColumns.isEmpty {
+                    for column in self.nullColumns {
+                        data.append((column, "null"))
+                    }
+                }
+                try update(data: data, idName: idname, idValue: idval)
+                self._columnsThatNeedNullOnSave.removeAll()
+            }
+        } catch {
+            LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
+            throw StORMError.error("\(error)")
+        }
+    }
 
 	/// Unlike the save() methods, create() mandates the addition of a new document, regardless of whether an ID has been set or specified.
 
-	override open func create() throws {
+    override open func create() throws {
 		do {
 			try insert(asData())
 		} catch {
@@ -199,6 +259,22 @@ open class PostgresStORM: StORM, StORMProtocol {
 			throw StORMError.error("\(error)")
 		}
 	}
+    
+    
+    /// This create function automatically sets in the createdby userid & completes the create function.
+    ///
+    /// - Parameter auditUserId: This is the user id for your user auditing this table.
+    /// - Throws: This throws a StORMError Error.
+    func create(auditUserId: Any) throws {
+        do {
+            var data = asData()
+            data.append(("createdby", String(describing: auditUserId)))
+            try insert(data)
+        } catch {
+            LogFile.error("Error: \(error)", logFile: "./StORMlog.txt")
+            throw StORMError.error("\(error)")
+        }
+    }
 
 
 	/// Table Creation (alias for setup)

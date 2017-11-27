@@ -20,11 +20,8 @@ extension PostgresStORM {
 		var keys = [String]()
 		var vals = [String]()
 		for i in data {
-            // Automatic created setting:
-            
+            // Automatic created setting: Here we are not modifying so we will ignore the modified child:
             if i.0 == "modified" {
-//                keys.append(i.0)
-//                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
             } else {
                 keys.append(i.0)
                 vals.append(String(describing: i.1))
@@ -46,8 +43,6 @@ extension PostgresStORM {
         for i in data.keys {
             
             if i == "modified" {
-//                keys.append(i.lowercased())
-//                vals.append(String(describing: Int(Date().timeIntervalSince1970)))
             } else {
                 keys.append(i.lowercased())
                 vals.append(data[i] as! String)

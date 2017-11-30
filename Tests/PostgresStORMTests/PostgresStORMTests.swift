@@ -168,43 +168,24 @@ class PostgresStORMTests: XCTestCase {
 
 	override func setUp() {
 		super.setUp()
-//        #if os(Linux)
-//
-//            PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
-//            PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
-//            PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
-//            PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
-//            PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
-//
-//        #else
-//            PostgresConnector.host        = "localhost"
-//            PostgresConnector.username    = "perfect"
-//            PostgresConnector.password    = "perfect"
-//            PostgresConnector.database    = "perfect_testing"
-//            PostgresConnector.port        = 5432
-//        #endif
-//        let obj = User()
-//        try? obj.setup()
-//        StORMdebug = true
-//
         #if os(Linux)
-            
+
             PostgresConnector.host        = ProcessInfo.processInfo.environment["HOST"]!
             PostgresConnector.username    = ProcessInfo.processInfo.environment["USER"]!
             PostgresConnector.password    = ProcessInfo.processInfo.environment["PASS"]!
             PostgresConnector.database    = ProcessInfo.processInfo.environment["DB"]!
             PostgresConnector.port        = Int(ProcessInfo.processInfo.environment["PORT"]!)!
-            
+
         #else
             PostgresConnector.host        = "localhost"
-            PostgresConnector.username    = "testuser"
-            PostgresConnector.password    = "ccx"
-            PostgresConnector.database    = "testdb"
+            PostgresConnector.username    = "perfect"
+            PostgresConnector.password    = "perfect"
+            PostgresConnector.database    = "perfect_testing"
             PostgresConnector.port        = 5432
         #endif
         
-//        let user = TestUser()
-//        try? user.setup()
+        let user = TestUser()
+        try? user.setup()
         
         let user2 = TestUser2()
         try? user2.setup(autoIncrementPK: true)

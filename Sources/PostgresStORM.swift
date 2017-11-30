@@ -344,8 +344,8 @@ open class PostgresStORM: StORM, StORMProtocol {
                         verbage += " NOT NULL"
                         keyName = key
                     }
+                    opt.append(verbage)
                 }
-                opt.append(verbage)
             }
             
             var keyComponent = ""

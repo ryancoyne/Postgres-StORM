@@ -8,7 +8,6 @@
 
 import StORM
 import PerfectLogger
-import Foundation
 
 /// Extends the main class with update functions.
 extension PostgresStORM {

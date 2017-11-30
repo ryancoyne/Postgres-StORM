@@ -1,6 +1,6 @@
 import XCTest
 import PerfectLib
-import Foundation
+//import Foundation
 import StORM
 @testable import PostgresStORM
 

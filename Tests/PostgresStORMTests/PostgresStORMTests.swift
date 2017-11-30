@@ -7,9 +7,13 @@ import StORM
 
 class AuditFields: PostgresStORM {
     
+    /// This is when the table row has been created.
     var created : Int?           = nil
+    /// This is the id of the user that has created the row.
     var createdby : String?  = nil
+    /// This is when the table row has been modified.
     var modified : Int?          = nil
+    /// This is the id of the user that has modified the row.
     var modifiedby : String? = nil
     
     // This is needed when created a subclass containing other fields to re-use for other models.
@@ -55,7 +59,7 @@ class TestUser2: AuditFields {
         return "testuser2"
     }
     
-    // This is only needed if the id for the table is outside the scope of this class.  This also gives us the flexibilty of having the primary key placed anwhere in the model.
+    // This is only needed if the id for the table is outside the scope of this class.  This also gives us the flexibilty of having the primary key placed anywhere in the model.
     override open func primaryKeyLabel() -> String? {
         return "id"
     }

@@ -37,7 +37,7 @@ class TestUser2: AuditFields {
     }
     var lastname : String?          = nil {
         didSet {
-            if oldValue != nil && firstname == nil {
+            if oldValue != nil && lastname == nil {
                 self.nullColumns.insert("lastname")
             } else if firstname != nil {
                 self.nullColumns.remove("lastname")
@@ -46,7 +46,7 @@ class TestUser2: AuditFields {
     }
     var phonenumber : String? = nil {
         didSet {
-            if oldValue != nil && firstname == nil {
+            if oldValue != nil && phonenumber == nil {
                 self.nullColumns.insert("phonenumber")
             } else if firstname != nil {
                 self.nullColumns.remove("phonenumber")
@@ -230,7 +230,7 @@ class PostgresStORMTests: XCTestCase {
     func testGetAndSetNull() {
         
         let user = TestUser2()
-        try? user.get(10)
+        try? user.get(1)
         
         if user.id != nil {
             

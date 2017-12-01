@@ -145,3 +145,25 @@ Notice in the TestUser2 model we are able to have the id for the user down below
 Notice you also have to implement an override function for your initializer for AuditFields, indicating that you have initialized a superclass for your main PostgresStORM class.
 
 However, you do NOT need to override the primaryKeyLabel if you have the id as your first variable in your top class.
+
+### Automatic created/modified & createdby/modifiedby:
+You may either declare these variables as optional, or have a default and deal without optionals.  Either way, if you have a fieldname of created or modified, it will automatically set in the INTEGER epoch value.
+
+Updating the createdby & modifiedby will be at the PostgresStORM database level.  You will pass in the auditUserId as follows on your create or save function:
+```
+func handleSomeEndpoint() -> RequestHandler {
+    request, response in 
+    
+    guard let session = request.session else { response.notLoggedIn() }
+    let user = TestUser()
+    user.firstname = "First"
+    user.lastname  = "Last"
+    // This wont have an id so we would insert, automatically setting the created integer epoch value.  
+    // Saving specifying the auditUserId will automatically fill either createdby or modifiedby fields.
+    try? user.save(auditUserId: session.userid)
+    //OR 
+    // This will still automatically set created or modified integer date.
+    try? user.save()
+}
+
+```

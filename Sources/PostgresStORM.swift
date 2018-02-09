@@ -49,9 +49,9 @@ open class PostgresStORM: StORM, StORMProtocol {
 	}
 
 	/// Empty initializer
-	override public init() {
-		super.init()
-	}
+    required override public init() {
+        super.init()
+    }
 
 	private func printDebug(_ statement: String, _ params: [String]) {
 		if StORMdebug { LogFile.debug("StORM Debug: \(statement) : \(params.joined(separator: ", "))", logFile: "./StORMlog.txt") }

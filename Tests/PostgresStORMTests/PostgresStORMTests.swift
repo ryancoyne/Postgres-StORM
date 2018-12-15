@@ -17,7 +17,7 @@ class AuditFields: PostgresStORM {
     var modifiedby : String? = nil
     
     // This is needed when created a subclass containing other fields to re-use for other models.
-    override init() {
+    required init() {
         super.init()
         self.didInitializeSuperclass()
     }
@@ -100,6 +100,10 @@ class TestUser: AuditFields {
     var lastName : String? = nil
     var phoneNumber : String? = nil
     
+    var currentAmount = PostgresNumeric(12, 4)
+    // OR
+    var anotherAmount = PostgresNumeric(10,4, default: 5.0)
+    
     override open func table() -> String {
         return "testuser"
     }
@@ -116,6 +120,8 @@ class TestUser: AuditFields {
         firstName        = this.data["firstname"] as? String
         lastName        = this.data["lastname"] as? String
         phoneNumber            = this.data["phonenumber"] as? String
+        currentAmount.from(this.data["currentamount"])
+        anotherAmount.from(this.data["anotheramount"])
         
     }
     
@@ -204,7 +210,7 @@ class PostgresStORMTests: XCTestCase {
         user.phonenumber = "15555555555"
         
         do {
-            
+        
             try user.save(auditUserId: "MyUserIdTest", didSet: { id in let id = id as? Int
                 user.id = id
             })
@@ -251,6 +257,7 @@ class PostgresStORMTests: XCTestCase {
         user.firstName = "Test"
         user.lastName = "Test"
         user.phoneNumber = "15555555555"
+        user.currentAmount.value = 0.02
         
         do {
             try user.create()
@@ -582,6 +589,15 @@ class PostgresStORMTests: XCTestCase {
 		XCTAssert(obj.id == obj2.id, "Object not the same (id)")
 		XCTAssert(obj.stringarray == obj2.stringarray, "Object not the same (stringarray)")
 	}
+    
+    func testNumericType() {
+        var theNumeric = PostgresNumeric(12, 4)
+        print(theNumeric.value)
+        theNumeric.value = 0.0333
+        theNumeric += 0.03
+        print(theNumeric.stringValue)
+        XCTAssert("00000000.0633" == theNumeric.stringValue)
+    }
 	
     /* =============================================================================================
      parseRows (JSON Aggregation)

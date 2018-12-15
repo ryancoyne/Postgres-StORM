@@ -47,6 +47,10 @@ open class PostgresStORM: StORM, StORMProtocol {
 		let m = Mirror(reflecting: self)
 		return ("\(m.subjectType)").lowercased()
 	}
+    
+    open func sequence() -> String {
+        return "\(table())_id_seq"
+    }
 
 	/// Empty initializer
     required override public init() {
@@ -276,6 +280,33 @@ open class PostgresStORM: StORM, StORMProtocol {
         }
     }
 
+    // Table Exists??
+    open func doesTableExist(inSchema : String="public") throws -> Bool {
+        let sql = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name='\(table())' AND table_schema='\(inSchema)');"
+        if let result = try sqlRows(sql, params: []).first {
+            return (result.data["exists"] as? String) == "true"
+        } else {
+            return false
+        }
+    }
+    
+    open func doesColumnExist(inSchema : String, column: String) throws -> Bool {
+        let sql = "SELECT EXISTS (SELECT FROM information_schema.columns where table_schema='\(inSchema)' AND table_name='\(table())' AND column_name='\(column)');"
+        if let result = try sqlRows(sql, params: []).first {
+            return (result.data["exists"] as? String) == "true"
+        } else {
+            return false
+        }
+    }
+    
+    open func doesSequenceExist(inSchema : String) throws -> Bool {
+        let sql = "SELECT EXISTS (SELECT FROM information_schema.sequences where sequence_schema='\(inSchema)' AND sequence_name='\(sequence())');"
+        if let result = try sqlRows(sql, params: []).first {
+            return (result.data["exists"] as? Bool) == true
+        } else {
+            return false
+        }
+    }
 
 	/// Table Creation (alias for setup)
 
@@ -288,82 +319,140 @@ open class PostgresStORM: StORM, StORMProtocol {
     ///
     /// - Parameters:
     ///   - str: This makes it so you can run your own SQL string to setup your table.
+    ///   - inSchema:  This lets you set the schema for setting up the table.
     ///   - autoIncrementPK: This makes it so if your primary key is an integer, it sets up a sequence for automatically setting your id on save().
     /// - Throws: Throws a StORM error with the description of the error.
-    open func setup(_ str: String = "", autoIncrementPK : Bool = false) throws {
+    open func setup(_ str: String = "", inSchema : String="public", autoIncrementPK : Bool = false) throws {
 		LogFile.info("Running setup: \(table())", logFile: "./StORMlog.txt")
-		var createStatement = str
-		if str.count == 0 {
-			var opt = [String]()
-			var keyName = ""
-			for child in self.allChildren(includingNilValues: true, primaryKey: self.primaryKeyLabel()) {
-				var verbage = ""
-                guard let key = child.label else {
-                    continue
-                }
-				if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
-					verbage = "\(key.lowercased()) "
-                    switch type(of: child.value) {
-                    case is Int?.Type, is Int.Type:
-                        if autoIncrementPK && opt.count == 0 {
-                            verbage += "integer NOT NULL DEFAULT nextval('\(table())_id_seq'::regclass)"
-                            // Lets go and create the sequence:
-                            var addsequence = "CREATE SEQUENCE public.\(table())_id_seq "
-                            addsequence.append("INCREMENT 1 ")
-                            addsequence.append("START 1 ")
-                            addsequence.append("MINVALUE 1 ")
-                            addsequence.append("MAXVALUE 9223372036854775807 ")
-                            addsequence.append("CACHE 1;")
-                            
-                            do {
-                                try sql(addsequence, params: [])
-                            } catch {
-                                LogFile.error("Error msg: \(error)", logFile: "./StORMlog.txt")
-                                throw StORMError.error("\(error)")
-                            }
-                            
-                        } else if opt.count == 0 {
-                            verbage += "serial"
-                        } else {
-                            verbage += "int8"
-                        }
-                    case is Bool.Type, is Bool?.Type:
-                        verbage += "bool"
-                    case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
-                        verbage += "text"
-                    case is [String:Any].Type, is [String:Any]?.Type:
-                        verbage += "jsonb"
-                    case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
-                        verbage += "bytea"
-                    case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
-                        verbage += "float8"
-                    default:
-                        verbage += "text"
-                    }
-                    if opt.count == 0 && !autoIncrementPK {
-                        verbage += " NOT NULL"
-                        keyName = key
-                    }
-                    opt.append(verbage)
-                }
-            }
-            
-            var keyComponent = ""
-            if !autoIncrementPK  {
-                keyComponent =  ", CONSTRAINT \(table())_key PRIMARY KEY (\(keyName)) NOT DEFERRABLE INITIALLY IMMEDIATE"
-            }
-            
-            createStatement = "CREATE TABLE IF NOT EXISTS \(table()) (\(opt.joined(separator: ", "))\(keyComponent));"
-            if StORMdebug { LogFile.info("createStatement: \(createStatement)", logFile: "./StORMlog.txt") }
-            
-        }
         
-		do {
-			try sql(createStatement, params: [])
-		} catch {
-			LogFile.error("Error msg: \(error)", logFile: "./StORMlog.txt")
-			throw StORMError.error("\(error)")
-		}
+        // First lets check if the table exists already or not, then we know we may need to do some modifications to the table:
+        if try self.doesTableExist(inSchema: inSchema) {
+            // Table exists.. lets go and update the table!
+            // We are assuming the sequence has been created.  We are going and checking for updates to column names or a new column itself here:
+            var updateStatement = str
+            for child in self.allChildren(includingNilValues: true, primaryKey: self.primaryKeyLabel()) {
+                // Make sure we have a label for the value:
+                guard let key = child.label else { continue }
+                
+                if !key.hasPrefix("internal_") && !key.hasPrefix("_"), try self.doesColumnExist(inSchema: inSchema, column: key) {
+                    // Okay the column does exist.  We need to check for changes.
+                } else {
+                    // Okay the column does NOT exist.  Lets add this as an update to the table.. but first we need to get the data type:
+                    var data_type = ""
+                    var constraint = ""
+                    
+                    // If the user adds a default, than we will add a default here under the constraint.
+                    let valIsNil = (String(describing: child.value) == "nil")
+                    if let dbType = String(databaseType: child.value) {
+                        data_type = dbType
+                    } else {
+                        switch type(of: child.value) {
+                        case is Int?.Type, is Int.Type:
+                            // It is in an integer:
+                            data_type = "int8"
+                            if !valIsNil {
+                                constraint = " NOT NULL DEFAULT \(child.value as! Int) "
+                            }
+                        case is Bool.Type, is Bool?.Type:
+                            data_type = "bool"
+                        case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
+                            data_type = "text"
+                        case is [String:Any].Type, is [String:Any]?.Type:
+                            data_type = "jsonb"
+                        case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
+                            data_type = "bytea"
+                        case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
+                            data_type = "float8"
+                        default: break
+                        }
+                    }
+                    
+                    updateStatement.append("ALTER TABLE \(inSchema).\(table()) ADD COLUMN \(key) \(data_type) \(constraint)")
+                }
+            }
+            
+        } else {
+            // Go and create the NEW table:
+            var createStatement = str
+            if str.count == 0 {
+                var opt = [String]()
+                var keyName = ""
+                for child in self.allChildren(includingNilValues: true, primaryKey: self.primaryKeyLabel()) {
+                    var verbage = ""
+                    guard let key = child.label else {
+                        continue
+                    }
+                    if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
+                        verbage = "\(key.lowercased()) "
+                        // Take care of the custom data types:
+                        if let dbType = String(databaseType: child.value) {
+                            verbage += dbType
+                        } else {
+                            switch type(of: child.value) {
+                            case is Int?.Type, is Int.Type:
+                                if autoIncrementPK && opt.count == 0, try !self.doesSequenceExist(inSchema: inSchema) {
+                                    
+                                    verbage += "integer NOT NULL DEFAULT nextval('\(inSchema).\(sequence())'::regclass)"
+                                    // Lets go and create the sequence:
+                                    var addsequence = "CREATE SEQUENCE \(inSchema).\(sequence()) "
+                                    addsequence.append("INCREMENT 1 ")
+                                    addsequence.append("START 1 ")
+                                    addsequence.append("MINVALUE 1 ")
+                                    addsequence.append("MAXVALUE 9223372036854775807 ")
+                                    addsequence.append("CACHE 1;")
+                                    
+                                    do {
+                                        try sql(addsequence, params: [])
+                                    } catch {
+                                        LogFile.error("Error msg: \(error)", logFile: "./StORMlog.txt")
+                                        throw StORMError.error("\(error)")
+                                    }
+                                    
+                                } else if opt.count == 0 {
+                                    verbage += "serial"
+                                } else {
+                                    verbage += "int8"
+                                }
+                            case is Bool.Type, is Bool?.Type:
+                                verbage += "bool"
+                            case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
+                                verbage += "text"
+                            case is [String:Any].Type, is [String:Any]?.Type:
+                                verbage += "jsonb"
+                            case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
+                                verbage += "bytea"
+                            case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
+                                verbage += "float8"
+                            default:
+                                verbage += "text"
+                            }
+                        }
+                        
+                        if opt.count == 0 && !autoIncrementPK {
+                            verbage += " NOT NULL"
+                            keyName = key
+                        }
+                        opt.append(verbage)
+                    }
+                }
+                
+                var keyComponent = ""
+                if !autoIncrementPK  {
+                    keyComponent =  ", CONSTRAINT \(table())_key PRIMARY KEY (\(keyName)) NOT DEFERRABLE INITIALLY IMMEDIATE"
+                }
+                
+                createStatement = "CREATE TABLE IF NOT EXISTS \(inSchema).\(table()) (\(opt.joined(separator: ", "))\(keyComponent));"
+                if StORMdebug { LogFile.info("createStatement: \(createStatement)", logFile: "./StORMlog.txt") }
+                
+            }
+            
+            do {
+                try sql(createStatement, params: [])
+            } catch {
+                LogFile.error("Error msg: \(error)", logFile: "./StORMlog.txt")
+                throw StORMError.error("\(error)")
+            }
+        }
 	}
 
 }

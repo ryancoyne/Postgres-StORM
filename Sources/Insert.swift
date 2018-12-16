@@ -22,12 +22,8 @@ extension PostgresStORM {
             // Automatic created setting: Here we are not modifying so we will ignore the modified child:
             if i.0 == "modified" {
             } else {
-                // Lets allow for null or nil values:
-                let value = String(describing: i.1)
-                if value != "nil" {
-                    keys.append(i.0)
-                    vals.append(value)
-                }
+                keys.append(i.0)
+                vals.append(String(describing: i.1))
             }
 		}
 		do {
@@ -82,7 +78,7 @@ extension PostgresStORM {
         var i = 1
 		for param in params {
             let value = String(describing: param)
-            if value.contains(string: ":gis_function"), let theValue = value.components(separatedBy: ":gis_function").first {
+            if value.isGISFunction, let theValue = value.gisFunctionValue {
                 // This must have a function of a value, we will try directly inserting into the substring:
                 substString.append(theValue)
             } else {

@@ -19,12 +19,18 @@ extension PostgresStORM {
 
 		var paramsString = [String]()
 		var set = [String]()
-		for i in 0..<params.count {
-            
-            paramsString.append(String(describing: params[i]))
-            set.append("\"\(cols[i].lowercased())\" = $\(i+1)")
-            
-		}
+        var i = 1
+        for (paramIndex, param) in params.enumerated() {
+            let value = String(describing: param)
+            if value.isGISFunction, let theValue = value.gisFunctionValue {
+                // This must have a function of a value, we will try directly inserting into the substring:
+                set.append(cols[paramIndex] + " = " + theValue)
+            } else {
+                paramsString.append(value)
+                set.append("\"\(cols[paramIndex])\" = $\(i)")
+                i += 1
+            }
+        }
         
         // Lets deal with updating values back to null - we wont lowercase the null column name since they are adding it in the array if it gets set to nil in the model:
         for nullColumnName in nullColumns {
@@ -33,7 +39,7 @@ extension PostgresStORM {
         
 		paramsString.append(String(describing: idValue))
 
-		let str = "UPDATE \(self.table()) SET \(set.joined(separator: ", ")) WHERE \"\(idName.lowercased())\" = $\(params.count+1)"
+		let str = "UPDATE \(self.table()) SET \(set.joined(separator: ", ")) WHERE \"\(idName.lowercased())\" = $\(i)"
 
 		do {
 			try exec(str, params: paramsString)

@@ -94,11 +94,17 @@ extension PostgresStORM {
 		if columns.count > 0 {
 			clauseSelectList = "\""+columns.joined(separator: "\",\"")+"\""
 		} else {
-			var keys = [String]()
-			for i in cols() {
-				keys.append(i.0)
+            clauseSelectList = ""
+            let theCols = cols()
+			for i in theCols {
+                let selectStatement = String(select: i.1, column: i.0)
+                if selectStatement.isFunction, let it = selectStatement.functionValue {
+                    clauseSelectList += it
+                } else {
+                    clauseSelectList += "\"\(i.0)\""
+                }
+                if i.0 != theCols.last?.0 { clauseSelectList += "," }
 			}
-			clauseSelectList = "\""+keys.joined(separator: "\",\"")+"\""
 		}
 		if whereclause.count > 0 {
 			clauseWhere = " WHERE \(whereclause)"
@@ -125,7 +131,8 @@ extension PostgresStORM {
 
 			if numrecords == 0 { return }
 			// SELECT ASSEMBLE
-			var str = "SELECT \(clauseSelectList.lowercased()) FROM \(table()) \(clauseWhere) \(clauseOrder)"
+
+			var str = "SELECT \(clauseSelectList) FROM \(table()) \(clauseWhere) \(clauseOrder)"
 
 
 			// TODO: Add joins, having, groupby

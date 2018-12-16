@@ -24,7 +24,14 @@ class AuditFields: PostgresStORM {
 }
 
 // The outer most class does not need to override init & call didInitializeSuperclass.  This helps with identifying the id in the model.
-class TestUser2: AuditFields {
+class TestUser2: AuditFields, Equatable {
+    static func == (lhs: TestUser2, rhs: TestUser2) -> Bool {
+        if lhs.id == nil, lhs.id == rhs.id {
+            return lhs.firstname == rhs.firstname && lhs.lastname == rhs.lastname && lhs.phonenumber == rhs.phonenumber && lhs.geopoint == rhs.geopoint
+        }
+        return lhs.id == rhs.id
+    }
+    
     // Notice we now do not need to put id at the top.  However, this is backwards compatable, meaning if you do not want to subclass, or if someone updates & has the same models as configured before, they do not need to add any extra code to set the primaryKeyLabel.
     var firstname : String?          = nil {
         didSet {
@@ -39,7 +46,7 @@ class TestUser2: AuditFields {
         didSet {
             if oldValue != nil && lastname == nil {
                 self.nullColumns.insert("lastname")
-            } else if firstname != nil {
+            } else if lastname != nil {
                 self.nullColumns.remove("lastname")
             }
         }
@@ -48,14 +55,22 @@ class TestUser2: AuditFields {
         didSet {
             if oldValue != nil && phonenumber == nil {
                 self.nullColumns.insert("phonenumber")
-            } else if firstname != nil {
+            } else if phonenumber != nil {
                 self.nullColumns.remove("phonenumber")
             }
         }
     }
     var id : Int?                             = nil
     
-    var geopoint = GeographyPoint()
+    var geopoint = GeographyPoint() {
+        didSet {
+            if geopoint.longitude == nil, geopoint.latitude == nil, (oldValue.latitude != nil || oldValue.longitude != nil) {
+                self.nullColumns.insert("geopoint")
+            } else if geopoint.longitude != nil, geopoint.latitude != nil, (oldValue.latitude == nil || oldValue.longitude == nil) {
+                self.nullColumns.remove("geopoint")
+            }
+        }
+    }
     
     override open func table() -> String {
         return "testuser2"
@@ -193,11 +208,11 @@ class PostgresStORMTests: XCTestCase {
             PostgresConnector.port        = 5432
         #endif
         
-        let user = TestUser()
-        try? user.setup()
+//        let user = TestUser()
+//        try? user.setup()
         
-        let user2 = TestUser2()
-        try? user2.setup(autoIncrementPK: true)
+//        let user2 = TestUser2()
+//        try? user2.setup(autoIncrementPK: true)
         
         StORMdebug = true
         
@@ -231,10 +246,11 @@ class PostgresStORMTests: XCTestCase {
         
         let user = TestUser2()
         
-        user.id = 6
+        try? user.get(6)
         
-        user.geopoint.longitude = -78
-        user.geopoint.longitude = 39
+        user.lastname = nil
+        user.geopoint.longitude = nil
+        user.geopoint.latitude = nil
         
         do {
             

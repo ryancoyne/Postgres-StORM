@@ -55,6 +55,8 @@ class TestUser2: AuditFields {
     }
     var id : Int?                             = nil
     
+    var geopoint = GeographyPoint()
+    
     override open func table() -> String {
         return "testuser2"
     }
@@ -76,6 +78,7 @@ class TestUser2: AuditFields {
         firstname        = this.data["firstname"] as? String
         lastname        = this.data["lastname"] as? String
         phonenumber            = this.data["phonenumber"] as? String
+        geopoint.from(this.data["geopoint"])
         
     }
     
@@ -208,12 +211,34 @@ class PostgresStORMTests: XCTestCase {
         user.firstname = "Test"
         user.lastname = "Test"
         user.phonenumber = "15555555555"
+        user.geopoint.longitude = -77
+        user.geopoint.latitude = 38
         
         do {
         
             try user.save(auditUserId: "MyUserIdTest", didSet: { id in let id = id as? Int
                 user.id = id
             })
+            
+        } catch {
+            XCTFail(String(describing: error))
+        }
+        XCTAssert(user.id != nil, "Object not saved (new)")
+        
+    }
+    
+    func testUpdateModel() {
+        
+        let user = TestUser2()
+        
+        user.id = 6
+        
+        user.geopoint.longitude = -78
+        user.geopoint.longitude = 39
+        
+        do {
+            
+            try user.save(auditUserId: "MyUserIdTest")
             
         } catch {
             XCTFail(String(describing: error))

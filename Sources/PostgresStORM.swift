@@ -284,16 +284,16 @@ open class PostgresStORM: StORM, StORMProtocol {
     open func doesTableExist(inSchema : String="public") throws -> Bool {
         let sql = "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name='\(table())' AND table_schema='\(inSchema)');"
         if let result = try sqlRows(sql, params: []).first {
-            return (result.data["exists"] as? String) == "true"
+            return (result.data["exists"] as? Bool) == true
         } else {
             return false
         }
     }
     
     open func doesColumnExist(inSchema : String, column: String) throws -> Bool {
-        let sql = "SELECT EXISTS (SELECT FROM information_schema.columns where table_schema='\(inSchema)' AND table_name='\(table())' AND column_name='\(column)');"
+        let sql = "SELECT EXISTS (SELECT FROM information_schema.columns where table_schema='\(inSchema)' AND table_name='\(table())' AND column_name='\(column.lowercased())');"
         if let result = try sqlRows(sql, params: []).first {
-            return (result.data["exists"] as? String) == "true"
+            return (result.data["exists"] as? Bool) == true
         } else {
             return false
         }
@@ -307,7 +307,27 @@ open class PostgresStORM: StORM, StORMProtocol {
             return false
         }
     }
-
+    
+    private func getTableInformation(inSchema : String) throws -> [StORMRow] {
+        let sql = "SELECT column_name, udt_name FROM information_schema.columns WHERE table_name='\(table())' AND table_schema='\(inSchema)';"
+        return try sqlRows(sql, params: [])
+    }
+    
+    private func isPostGISInstalled() throws -> Bool {
+        let sql = "SELECT extname from pg_extension where extname = 'postgis' OR extname = 'postgis_topology';"
+        return try sqlRows(sql, params: []).count == 2
+    }
+    
+    private func postGISInstall() throws {
+        
+        try self.sqlRows("CREATE EXTENSION postgis;", params: [])
+        try self.sqlRows("CREATE EXTENSION postgis_topology;", params: [])
+        let eid = LogFile.critical("ATTENTION: postgis is not activated for the database \(PostgresConnector.database).  Do this:")
+        LogFile.critical("psql -d \(PostgresConnector.database) -c \"CREATE EXTENSION postgis;\"", eventid: eid)
+        LogFile.critical("psql -d \(PostgresConnector.database) -c \"CREATE EXTENSION postgis_topology;\"", eventid: eid)
+        
+    }
+    
 	/// Table Creation (alias for setup)
 
 	open func setupTable(_ str: String = "") throws {
@@ -334,41 +354,62 @@ open class PostgresStORM: StORM, StORMProtocol {
                 // Make sure we have a label for the value:
                 guard let key = child.label else { continue }
                 
-                if !key.hasPrefix("internal_") && !key.hasPrefix("_"), try self.doesColumnExist(inSchema: inSchema, column: key) {
-                    // Okay the column does exist.  We need to check for changes.
-                } else {
-                    // Okay the column does NOT exist.  Lets add this as an update to the table.. but first we need to get the data type:
-                    var data_type = ""
-                    var constraint = ""
-                    
-                    // If the user adds a default, than we will add a default here under the constraint.
-                    let valIsNil = (String(describing: child.value) == "nil")
-                    if let dbType = String(databaseType: child.value) {
-                        data_type = dbType
+                if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
+                    // Okay we can check these keys:
+                    if try self.doesColumnExist(inSchema: inSchema, column: key) {
+                        // This column exists!
+//                        print("The column \(key) EXISTS in \(inSchema).\(table())")
+                        // Lets go and check to make sure they are the same type!
+                        
                     } else {
-                        switch type(of: child.value) {
-                        case is Int?.Type, is Int.Type:
-                            // It is in an integer:
-                            data_type = "int8"
-                            if !valIsNil {
-                                constraint = " NOT NULL DEFAULT \(child.value as! Int) "
+                        // Okay the column does NOT exist.  Lets add this as an update to the table.. but first we need to get the data type:
+                        var data_type = ""
+                        var constraint = ""
+                        
+                        // If the user adds a default, than we will add a default here under the constraint.
+                        let valIsNil = (String(describing: child.value) == "nil")
+                        if let dbType = String(databaseType: child.value) {
+                            if child.value is PostGIS, try !self.isPostGISInstalled() {
+                                // Check if we have PostGIS installed, if not... lets install it.
+                                try self.postGISInstall()
                             }
-                        case is Bool.Type, is Bool?.Type:
-                            data_type = "bool"
-                        case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
-                            data_type = "text"
-                        case is [String:Any].Type, is [String:Any]?.Type:
-                            data_type = "jsonb"
-                        case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
-                            data_type = "bytea"
-                        case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
-                            data_type = "float8"
-                        default: break
+                            data_type = dbType
+                        } else {
+                            switch type(of: child.value) {
+                            case is Int?.Type, is Int.Type:
+                                // It is in an integer:
+                                data_type = "int8"
+                                if !valIsNil {
+                                    constraint = " NOT NULL DEFAULT \(child.value as! Int) "
+                                }
+                            case is Bool.Type, is Bool?.Type:
+                                data_type = "bool"
+                            case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
+                                data_type = "text"
+                            case is [String:Any].Type, is [String:Any]?.Type:
+                                data_type = "jsonb"
+                            case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
+                                data_type = "bytea"
+                            case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
+                                data_type = "float8"
+                            default: break
+                            }
+                        }
+                        
+                        updateStatement.append("ALTER TABLE \(inSchema).\(table()) ADD COLUMN \(key) \(data_type) \(constraint)")
+                        
+                        // Lets go and add te column:
+                        do {
+                            try self.sqlRows(updateStatement, params: [])
+                        } catch {
+                            print("Error Adding a new column to \(table())!!")
                         }
                     }
-                    
-                    updateStatement.append("ALTER TABLE \(inSchema).\(table()) ADD COLUMN \(key) \(data_type) \(constraint)")
                 }
+//                else {
+//
+//
+//                }
             }
             
         } else {
@@ -386,6 +427,10 @@ open class PostgresStORM: StORM, StORMProtocol {
                         verbage = "\(key.lowercased()) "
                         // Take care of the custom data types:
                         if let dbType = String(databaseType: child.value) {
+                            if child.value is PostGIS, try !self.isPostGISInstalled() {
+                                // Check if we have PostGIS installed, if not... lets install it.
+                                try self.postGISInstall()
+                            }
                             verbage += dbType
                         } else {
                             switch type(of: child.value) {

@@ -6,14 +6,12 @@
 //
 
 import Foundation
-protocol CustomDatabaseTypeConvertible {
-    var type : String { get }
-}
+
 struct PostgresNumeric : CustomStringConvertible, CustomDatabaseTypeConvertible {
     
     /// This is the description of the posgres numeric field.  We didn't want to include everything about the optionals and the number formatter.
     var description: String {
-        if self.value == nil { return "null" }
+        if self.value == nil { return "nil" }
         return "\(self.value!)"
     }
     /// This is the database type that is needed when going and creating the database column itself.

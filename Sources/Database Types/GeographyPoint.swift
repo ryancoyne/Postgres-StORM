@@ -1,0 +1,37 @@
+//
+//  PostGISGeographyPoint.swift
+//  COpenSSL
+//
+//  Created by Ryan Coyne on 12/14/18.
+//
+
+import Foundation
+
+struct GeographyPoint : CustomStringConvertible, CustomDatabaseTypeConvertible, PostGIS {
+    
+    /// This is the description for the database type.  This is for creating the database table.
+    var type: String {
+        return "geography(Point,4326)"
+    }
+    ///  This is the description of the PostGIS Geography Point for creating or inserting the field into the database.
+    var description: String {
+        if longitude != nil && latitude != nil {
+            return "ST_SetSRID(ST_MakePoint(\(longitude!),\(latitude!)),4326):gis_function"
+        } else {
+            return "nil"
+        }
+    }
+    
+    ///  An easy function to use to get the value from the database into a double value for the geometry field.
+    mutating func from(_ value : Any?) {
+        if let theString = value as? String {
+            
+        }
+    }
+    
+    ///  This is the latitude of the geography data point.
+    var latitude : Double? = nil
+    ///  This is the longitude of the geography data point.
+    var longitude : Double? = nil
+    
+}

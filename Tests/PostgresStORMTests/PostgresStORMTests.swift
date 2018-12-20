@@ -4,6 +4,11 @@ import PerfectLib
 import StORM
 @testable import PostgresStORM
 
+enum Gender : String, CustomStringConvertible, CustomDatabaseTypeConvertible {
+    var type: String { return "text" }
+    var description: String { return self.rawValue }
+    case male = "Male", female = "Female", unknown
+}
 
 class AuditFields: PostgresStORM {
     
@@ -60,7 +65,20 @@ class TestUser2: AuditFields, Equatable {
             }
         }
     }
+    
+    var gender : Gender = .unknown
+    
     var id : Int?                             = nil
+    
+//    var money = PostgresNumeric(14, 3) {
+//        didSet {
+//            if oldValue.value != nil && money.value == nil {
+//                self.nullColumns.insert("money")
+//            } else if money.value != nil {
+//                self.nullColumns.remove("money")
+//            }
+//        }
+//    }
     
     var geopoint = GeographyPoint() {
         didSet {
@@ -211,8 +229,8 @@ class PostgresStORMTests: XCTestCase {
 //        let user = TestUser()
 //        try? user.setup()
         
-//        let user2 = TestUser2()
-//        try? user2.setup(autoIncrementPK: true)
+        let user2 = TestUser2()
+        try? user2.setup(autoIncrementPK: true)
         
         StORMdebug = true
         
@@ -251,6 +269,7 @@ class PostgresStORMTests: XCTestCase {
         user.lastname = nil
         user.geopoint.longitude = nil
         user.geopoint.latitude = nil
+//        user.money.value = 22.54
         
         do {
             

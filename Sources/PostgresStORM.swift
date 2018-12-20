@@ -308,11 +308,6 @@ open class PostgresStORM: StORM, StORMProtocol {
         }
     }
     
-    private func getTableInformation(inSchema : String) throws -> [StORMRow] {
-        let sql = "SELECT column_name, udt_name FROM information_schema.columns WHERE table_name='\(table())' AND table_schema='\(inSchema)';"
-        return try sqlRows(sql, params: [])
-    }
-    
     private func isPostGISInstalled() throws -> Bool {
         let sql = "SELECT extname from pg_extension where extname = 'postgis' OR extname = 'postgis_topology';"
         return try sqlRows(sql, params: []).count == 2
@@ -334,6 +329,20 @@ open class PostgresStORM: StORM, StORMProtocol {
 		try setup(str)
 	}
     
+    private func getTableInformation(inSchema : String="public") throws -> [StORMRow] {
+        return try self.sqlRows("SELECT column_name, udt_name, table_catalog, table_schema, numeric_scale, numeric_precision FROM information_schema.columns where table_name='\(table())' and table_schema='\(inSchema)';", params: [])
+    }
+    
+    private func dropColumn(_ column : String, inSchema : String = "public") throws -> Bool {
+        do {
+            let sql = "ALTER TABLE \(table()) DROP COLUMN \(column)"
+            try self.sqlRows(sql, params: [])
+            return true
+        } catch {
+            return false
+        }
+    }
+    
     /// Table creation
     /// Requires the connection to be configured, as well as a valid "table" property to have been set in the class
     ///
@@ -345,73 +354,97 @@ open class PostgresStORM: StORM, StORMProtocol {
     open func setup(_ str: String = "", inSchema : String="public", autoIncrementPK : Bool = false) throws {
 		LogFile.info("Running setup: \(table())", logFile: "./StORMlog.txt")
         
-        // First lets check if the table exists already or not, then we know we may need to do some modifications to the table:
+        // Lets check if the table exists already or not, then we know we may need to do some modifications to the table:
         if try self.doesTableExist(inSchema: inSchema) {
-            // Table exists.. lets go and update the table!
+            // Lets first go and get all the current table information, and delete out any of these tables that do not exist in the model:
+            var existingColumns = try self.getTableInformation(inSchema: inSchema).map { (name: $0.data["column_name"] as! String, udt_name: $0.data["udt_name"] as! String) }
+    
             // We are assuming the sequence has been created.  We are going and checking for updates to column names or a new column itself here:
             var updateStatement = str
+            // This is where we add in any columns that do not exist:
             for child in self.allChildren(includingNilValues: true, primaryKey: self.primaryKeyLabel()) {
                 // Make sure we have a label for the value:
-                guard let key = child.label else { continue }
+                guard let key = child.label else { print("Key is null.");continue }
+                guard !key.hasPrefix("internal_") else { continue }
+                guard !key.hasPrefix("_") else { continue }
                 
-                if !key.hasPrefix("internal_") && !key.hasPrefix("_") {
-                    // Okay we can check these keys:
-                    if try self.doesColumnExist(inSchema: inSchema, column: key) {
-                        // This column exists!
-//                        print("The column \(key) EXISTS in \(inSchema).\(table())")
-                        // Lets go and check to make sure they are the same type!
-                        
-                    } else {
-                        // Okay the column does NOT exist.  Lets add this as an update to the table.. but first we need to get the data type:
-                        var data_type = ""
-                        var constraint = ""
-                        
-                        // If the user adds a default, than we will add a default here under the constraint.
-                        let valIsNil = (String(describing: child.value) == "nil")
-                        if let dbType = String(databaseType: child.value) {
-                            if child.value is PostGIS, try !self.isPostGISInstalled() {
-                                // Check if we have PostGIS installed, if not... lets install it.
-                                try self.postGISInstall()
-                            }
-                            data_type = dbType
-                        } else {
-                            switch type(of: child.value) {
-                            case is Int?.Type, is Int.Type:
-                                // It is in an integer:
-                                data_type = "int8"
-                                if !valIsNil {
-                                    constraint = " NOT NULL DEFAULT \(child.value as! Int) "
-                                }
-                            case is Bool.Type, is Bool?.Type:
-                                data_type = "bool"
-                            case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
-                                data_type = "text"
-                            case is [String:Any].Type, is [String:Any]?.Type:
-                                data_type = "jsonb"
-                            case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
-                                data_type = "bytea"
-                            case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
-                                data_type = "float8"
-                            default: break
-                            }
+                if let index = existingColumns.index(where: { (value) -> Bool in
+                    return value.name == key
+                }) {
+                    existingColumns.remove(at: index)
+                }
+                // This is going forward, to create any columns
+                if try self.doesColumnExist(inSchema: inSchema, column: key) {
+                    // This column exists!
+                    //                        print("The column \(key) EXISTS in \(inSchema).\(table())")
+                    // Lets go and check to make sure they are the same type!
+                    
+                } else {
+                    // Okay the column does NOT exist.  Lets add this as an update to the table.. but first we need to get the data type:
+                    var data_type = ""
+                    var constraint = ""
+                    
+                    // If the user adds a default, than we will add a default here under the constraint.
+                    let valIsNil = (String(describing: child.value) == "nil")
+                    if let dbType = String(databaseType: child.value) {
+                        if child.value is PostGIS, try !self.isPostGISInstalled() {
+                            // Check if we have PostGIS installed, if not... lets install it.
+                            try self.postGISInstall()
                         }
-                        
-                        updateStatement.append("ALTER TABLE \(inSchema).\(table()) ADD COLUMN \(key) \(data_type) \(constraint)")
-                        
-                        // Lets go and add te column:
-                        do {
-                            try self.sqlRows(updateStatement, params: [])
-                        } catch {
-                            print("Error Adding a new column to \(table())!!")
+                        data_type = dbType
+                    } else {
+                        switch type(of: child.value) {    
+                        case is Int?.Type, is Int.Type:
+                            // It is in an integer:
+                            data_type = "int8"
+                            if !valIsNil {
+                                constraint = " NOT NULL DEFAULT \(child.value as! Int) "
+                            }
+                        case is Bool.Type, is Bool?.Type:
+                            data_type = "bool"
+                        case is String.Type, is String?.Type, is [Int]?.Type, is [Int].Type, is [String].Type, is [String]?.Type, is [Any].Type, is [Any]?.Type:
+                            data_type = "text"
+                        case is [String:Any].Type, is [String:Any]?.Type:
+                            data_type = "jsonb"
+                        case is UInt.Type, is UInt8.Type, is UInt16.Type, is UInt32.Type, is UInt64.Type, is UInt?.Type, is UInt8?.Type, is UInt16?.Type, is UInt32?.Type, is UInt64?.Type:
+                            data_type = "bytea"
+                        case is Double.Type, is Double?.Type, is Float.Type, is Float?.Type:
+                            data_type = "float8"
+                        default: break
                         }
                     }
+                    
+                    updateStatement.append("ALTER TABLE \(inSchema).\(table()) ADD COLUMN \(key) \(data_type) \(constraint)")
+                    
+                    // Lets go and add te column:
+                    do {
+                        try self.sqlRows(updateStatement, params: [])
+                    } catch {
+                        print("Error Adding a new column to \(table())!!")
+                    }
                 }
+//                if let index = existingColumns.index(of: key) { existingColumns.remove(at: index) } else {
+//                    // Okay.  This field is not found.  Lets go and delete it:
+//                    if try self.dropColumn(key, inSchema: inSchema) {
+//                    } else {
+//                        print("We could not drop the column!")
+//                    }
+//                }
 //                else {
 //
 //
 //                }
             }
             
+            // Now lets delete out the types that were left:
+            for column in existingColumns {
+                if try self.dropColumn(column.name, inSchema: inSchema) {
+                    print("Dropped \(column.name)")
+                } else {
+                    print("Issue dropping \(column.name) with type \(column.udt_name)")
+                }
+            }
+        
         } else {
             // Go and create the NEW table:
             var createStatement = str

@@ -5,6 +5,6 @@
 //  Created by Ryan Coyne on 12/16/18.
 //
 
-protocol CustomDatabaseTypeConvertible {
+public protocol CustomDatabaseTypeConvertible {
     var type : String { get }
 }

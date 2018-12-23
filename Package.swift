@@ -4,12 +4,9 @@ import PackageDescription
 let package = Package(
 	name: "PostgresStORM",
 	dependencies: [
-//        .Package(url: "https://github.com/PerfectlySoft/Perfect-PostgreSQL.git", majorVersion: 3),
-        .Package(url: "https://github.com/ryancoyne/Perfect-PostgreSQL", majorVersion: 3),
-        .Package(url: "https://github.com/ryancoyne/StORM-ryan", majorVersion: 3),
-//        .Package(url: "https://github.com/SwiftORM/StORM.git", majorVersion: 3),
-//			  .Package(url: "https://github.com/PerfectlySoft/Perfect-XML.git", majorVersion: 3),
-		.Package(url: "https://github.com/PerfectlySoft/Perfect-Logger.git", majorVersion: 3),
+        .package(url: "https://github.com/ryancoyne/Perfect-PostgreSQL", from: "3.0.0"),
+        .package(url: "https://github.com/ryancoyne/StORM-ryan", from: "3.0.0"),
+		package(url: "https://github.com/PerfectlySoft/Perfect-Logger.git", from: "3.0.0"),
 	],
     targets: [
         .target(

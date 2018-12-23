@@ -70,15 +70,15 @@ class TestUser2: AuditFields, Equatable {
     
     var id : Int?                             = nil
     
-//    var money = PostgresNumeric(14, 3) {
-//        didSet {
-//            if oldValue.value != nil && money.value == nil {
-//                self.nullColumns.insert("money")
-//            } else if money.value != nil {
-//                self.nullColumns.remove("money")
-//            }
-//        }
-//    }
+    var money = PostgresNumeric(14, 3) {
+        didSet {
+            if oldValue.value != nil && money.value == nil {
+                self.nullColumns.insert("money")
+            } else if money.value != nil {
+                self.nullColumns.remove("money")
+            }
+        }
+    }
     
     var geopoint = GeographyPoint() {
         didSet {
@@ -246,6 +246,7 @@ class PostgresStORMTests: XCTestCase {
         user.phonenumber = "15555555555"
         user.geopoint.longitude = -77
         user.geopoint.latitude = 38
+        user.money.value = 24.45
         
         do {
         

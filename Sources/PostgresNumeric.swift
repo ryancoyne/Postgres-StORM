@@ -19,10 +19,6 @@ struct PostgresNumeric : CustomStringConvertible, CustomDatabaseTypeConvertible 
         return "numeric(\(precision),\(scale))"
     }
     private var _value : Double? = nil
-    private var _numberFormatter : NumberFormatter = {
-        var nbFtr = NumberFormatter()
-        return nbFtr
-    }()
     
     init(_ precision: Int, _ scale: Int, default: Double?=nil) {
         self.precision = precision
@@ -38,10 +34,7 @@ struct PostgresNumeric : CustomStringConvertible, CustomDatabaseTypeConvertible 
     
     ///  This is the string value of the numeric field containing all the characters for the defined precision.
     var stringValue : String? {
-        // The precision is the entire number of allowed numeric digits.
-        if _value == nil { return nil }
-        makeSureScaleAndPrecisionSet()
-        return _numberFormatter.string(from: _value! as NSNumber)!
+        return String(format: "%\(precision-scale).\(scale)f", _value!).trimmingCharacters(in: .whitespaces)
     }
     
     ///  This is the double value of the numeric field.
@@ -54,28 +47,10 @@ struct PostgresNumeric : CustomStringConvertible, CustomDatabaseTypeConvertible 
         }
     }
     
-    ///  This is the decimal value of the numeric field.
-    var decimalValue : Decimal? {
-        if _value == nil { return nil }
-        return NSNumber(floatLiteral: _value!).decimalValue
-    }
-    
-    private func makeSureScaleAndPrecisionSet() {
-        if self._numberFormatter.maximumFractionDigits != self.scale {
-            self._numberFormatter.maximumFractionDigits = self.scale
-            self._numberFormatter.minimumFractionDigits = self.scale
-        }
-        let minIntegerDigits = (self.precision-self.scale)
-        if self._numberFormatter.maximumIntegerDigits != minIntegerDigits || self._numberFormatter.minimumIntegerDigits != minIntegerDigits {
-            self._numberFormatter.maximumIntegerDigits = minIntegerDigits
-            self._numberFormatter.minimumIntegerDigits = minIntegerDigits
-        }
-    }
-    
     ///  An easy function to use to get the value from the database into a double value for the numeric field.
     mutating func from(_ value : Any?) {
         if let theString = value as? String {
-            self._value = self._numberFormatter.number(from: theString)?.doubleValue
+            self._value = Double(theString)
         }
     }
     

@@ -11,8 +11,8 @@ let package = Package(
     targets: [
         .target(
             name: "PostgresStORM",
-            dependencies: ["PerfectPostgeSQL", "StORM", "PerfectLogger"],
-            path: "Sources"
+            dependencies: ["PerfectPostgeSQL", "StORM", "PerfectLogger"]
+//             path: "Sources"
         )
     ]
 )

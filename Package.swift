@@ -2,12 +2,13 @@
 
 import PackageDescription
 let package = Package(
-	name: "PostgresStORM",
+    name: "PostgresStORM",
     products: [
         // Products define the executables and libraries produced by a package, and make them visible to other packages.
         .library(
             name: "PostgresStORM",
-            targets: ["PostgresStORM"]),
+            targets: ["PostgresStORM"]
+	),
     ],
     dependencies: [
         .package(url: "https://github.com/ryancoyne/Perfect-PostgreSQL.git", from: "3.0.0"),
@@ -17,7 +18,8 @@ let package = Package(
     targets: [
         .target(
             name: "PostgresStORM",
-            dependencies: ["PerfectPostgeSQL", "StORM", "PerfectLogger"]
-        )
+            dependencies: ["PerfectPostgeSQL", "StORM", "PerfectLogger"],
+	    path: "Sources"
+        ),
     ]
 )

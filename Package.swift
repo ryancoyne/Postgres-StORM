@@ -18,8 +18,8 @@ let package = Package(
             url: "https://github.com/ryancoyne/StORM-ryan.git",
             from: "4.0.0"),
         .package(
-            url: "https://github.com/PerfectlySoft/Perfect-Logger.git",
-            from: "3.0.0"
+            url: "https://github.com/ryancoyne/Perfect-Logger.git",
+            from: "4.0.0"
         ),
     ],
     targets: [
